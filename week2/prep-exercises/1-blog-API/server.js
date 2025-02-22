@@ -1,7 +1,8 @@
 const express = require("express");
 const app = express();
+const fs = require("fs");
+app.use(express.json());
 
-// YOUR CODE GOES IN HERE
 app.get("/", function (req, res) {
   res.send("Hello World");
 });
@@ -46,4 +47,5 @@ app.get("/blogs/:title", (req, res) => {
     res.status(404).send("This blog does not exist!");
   }
 });
+
 app.listen(3000);
