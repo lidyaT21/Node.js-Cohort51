@@ -18,7 +18,7 @@ describe("GET /", () => {
 });
 
 describe("POST /weather", () => {
-  it("should return a 400 status code if city is not provided", async () => {
+  it("should return a 404 status code if city is not provided", async () => {
     const response = await request.post("/weather").send({});
 
     expect(response.status).toBe(404);
@@ -29,7 +29,7 @@ describe("POST /weather", () => {
   it("should return a 200 status code if city is provided", async () => {
     const response = await request
       .post("/weather")
-      .send({ cityName: "Khartoum" });
+      .send({ cityName: "Addis Ababa" });
 
     expect(response.status).toBe(200);
   });
@@ -39,11 +39,11 @@ describe("POST /weather", () => {
   it("should return a 200 status code if city is provided and weather text", async () => {
     const response = await request
       .post("/weather")
-      .send({ cityName: "Khartoum" });
+      .send({ cityName: "Addis Ababa" });
 
     expect(response.status).toBe(200);
     expect(response.body).toHaveProperty("weatherText");
-    expect(response.body.weatherText).toContain("Khartoum");
+    expect(response.body.weatherText).toContain("Addis Ababa");
   });
 });
 
@@ -51,11 +51,11 @@ describe("POST /weather", () => {
   it("should return a 500 status code if city is not found", async () => {
     const response = await request
       .post("/weather")
-      .send({ cityName: "Khartoum!" });
+      .send({ cityName: "Addis Ababa!" });
 
     expect(response.status).toBe(500);
     expect(response.body).toHaveProperty("weatherText");
-    expect(response.body.weatherText).toContain("City not found: Khartoum!");
+    expect(response.body.weatherText).toContain("City not found: Addis Ababa!");
   });
 });
 describe("GET /nonexistent", () => {
