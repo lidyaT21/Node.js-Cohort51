@@ -1,138 +1,82 @@
 import jwt from "jsonwebtoken";
 import { v4 as generateUUID } from "uuid";
 import { hash, compare } from "bcrypt";
-import newDatabase from "./database.js";
+import makeDatabase from "./database.js"; // Import the database
 
-const isPersistent = false;
-const database = newDatabase({ isPersistent });
-
-const JWT_SECRET = "your_secret_key";
+const JWT_SECRET = "your_secret_key"; // Replace with a secure environment variable
 const saltRounds = 10;
 
-const usersDatabase = database.getUsers();
+const db = makeDatabase({ isPersistent: true }); // Use LokiJS
 
 export const register = async (req, res) => {
-  // Check request body
   if (!req.body.username || !req.body.password) {
-    res
+    return res
       .status(400)
-      .json({ message: "Please provide username and password" })
-      .end();
-    return;
+      .json({ message: "Please provide username and password" });
   }
 
-  // Check if username already exists
-  const isUsernameExists = getUserByUsername(req.body.username) !== undefined;
-  if (isUsernameExists) {
-    res.status(400).json({ message: "Username already exists" }).end();
-    return;
+  const existingUser = db.getByUsername(req.body.username);
+  if (existingUser) {
+    return res.status(400).json({ message: "Username already exists" });
   }
 
-  // Hash the password and create new user
   const hashedPassword = await hash(req.body.password, saltRounds);
-  const newUser = {
+  const newUser = db.create({
     id: generateUUID(),
     username: req.body.username,
     password: hashedPassword,
-  };
+  });
 
-  // Save user to usersDatabase
-  database.addUser(newUser);
-
-  // Return success and the new user to the client
-  res
-    .status(201)
-    .json({
-      id: newUser.id,
-      username: newUser.username,
-    })
-    .end();
+  res.status(201).json({ id: newUser.id, username: newUser.username });
 };
 
 export const login = async (req, res) => {
-  // Check request body
   if (!req.body.username || !req.body.password) {
-    res
+    return res
       .status(400)
-      .json({ message: "Please provide username and password" })
-      .end();
-    return;
+      .json({ message: "Please provide username and password" });
   }
 
-  // Find user in the database
-  const user = getUserByUsername(req.body.username);
-  if (!user) {
-    res
+  const user = db.getByUsername(req.body.username); // 🔥 Use LokiJS
+  if (!user || !(await compare(req.body.password, user.password))) {
+    return res
       .status(401)
-      .json({ message: "Invalid username / password combination" })
-      .end();
-    return;
+      .json({ message: "Invalid username / password combination" });
   }
 
-  // Check if password is correct by using bcrypt compare
-  const isPasswordCorrect = await compare(req.body.password, user.password);
-  if (!isPasswordCorrect) {
-    res
-      .status(401)
-      .json({ message: "Invalid username / password combination" })
-      .end();
-    return;
-  }
-
-  // Generate JWT token
-  const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "1h" });
-
-  // Return the token to the client
-  res.status(200).json({ token }).end();
+  const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
+    expiresIn: "1h",
+  });
+  res.status(200).json({ token });
 };
 
 export const getProfile = (req, res) => {
-  // Check if user is logged in
   const authHeader = req.headers.authorization;
   const token = extractBearerTokenFromAuth(authHeader);
 
   if (!token) {
-    res.status(401).json({ message: "You are not logged in" }).end();
-    return;
+    return res.status(401).json({ message: "You are not logged in" });
   }
 
-  // Verify JWT token
   jwt.verify(token, JWT_SECRET, (err, decoded) => {
     if (err) {
-      res.status(401).json({ message: "Invalid token" }).end();
-      return;
+      return res.status(401).json({ message: "Invalid token" });
     }
 
-    const user = getUserById(decoded.userId);
+    const user = db.getById(decoded.userId); // 🔥 Use LokiJS
     if (!user) {
-      res.status(401).json({ message: "User not found" }).end();
-      return;
+      return res.status(401).json({ message: "User not found" });
     }
 
-    // Return user profile
-    res
-      .status(200)
-      .json({
-        message: `Hello! You are currently logged in as ${user.username}!`,
-      })
-      .end();
+    res.status(200).json({
+      message: `Hello! You are currently logged in as ${user.username}!`,
+    });
   });
 };
-
 export const logout = (req, res) => {
-  // No need to track sessions with JWT
   res.status(204).end();
 };
-
-// Helper functions
-const getUserByUsername = (username) => {
-  return usersDatabase.find((user) => user.username === username);
-};
-
-const getUserById = (userID) => {
-  return usersDatabase.find((user) => user.id === userID);
-};
-
+// Helper function
 const extractBearerTokenFromAuth = (authorization) => {
   if (!authorization || !authorization.startsWith("Bearer ")) {
     return null;

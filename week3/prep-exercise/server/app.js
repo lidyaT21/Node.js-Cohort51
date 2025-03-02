@@ -1,8 +1,8 @@
 import express from "express";
-import { register, login, getProfile, logout } from "./controllers.js";
+import { register, login, getProfile, logout } from "./users.js";
 
 const app = express();
-
+app.use(express.json());
 // Register Endpoint
 app.post("/register", register);
 
